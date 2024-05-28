@@ -1,14 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 import { useQuery, useMutation, useQueryClient, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import React from 'react';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_PROJECT_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_API_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-import React from "react";
 export const queryClient = new QueryClient();
+
 export function SupabaseProvider({ children }) {
-    return React.createElement(QueryClientProvider, { client: queryClient }, children);
+    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }
 
 const fromSupabase = async (query) => {
@@ -19,18 +20,49 @@ const fromSupabase = async (query) => {
 
 // hooks
 
-// EXAMPLE HOOKS SECTION
+export const useFetchData = (table, queryKey) => useQuery({
+    queryKey: [queryKey],
+    queryFn: () => fromSupabase(supabase.from(table).select('*')),
+    onError: (error) => {
+        console.error(`Error fetching data from ${table}:`, error.message);
+    },
+});
 
-export const useFoo = ()=> useQuery({
-    queryKey: ['foo'],
-    queryFn: fromSupabase(supabase.from('foo').select('*,bars(*)')),
-})
-export const useAddFoo = () => {
+export const useAddData = (table, queryKey) => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: (newFoo)=> fromSupabase(supabase.from('foo').insert([{ title: newFoo.title }])),
-        onSuccess: ()=> {
-            queryClient.invalidateQueries('foo');
+        mutationFn: (newData) => fromSupabase(supabase.from(table).insert(newData)),
+        onSuccess: () => {
+            queryClient.invalidateQueries([queryKey]);
+        },
+        onError: (error) => {
+            console.error(`Error adding data to ${table}:`, error.message);
+        },
+    });
+};
+
+export const useUpdateData = (table, queryKey) => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (updatedData) => fromSupabase(supabase.from(table).update(updatedData).eq('id', updatedData.id)),
+        onSuccess: () => {
+            queryClient.invalidateQueries([queryKey]);
+        },
+        onError: (error) => {
+            console.error(`Error updating data in ${table}:`, error.message);
+        },
+    });
+};
+
+export const useDeleteData = (table, queryKey) => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (id) => fromSupabase(supabase.from(table).delete().eq('id', id)),
+        onSuccess: () => {
+            queryClient.invalidateQueries([queryKey]);
+        },
+        onError: (error) => {
+            console.error(`Error deleting data from ${table}:`, error.message);
         },
     });
 };
